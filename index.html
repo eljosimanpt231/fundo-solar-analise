@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Fundo Solar — Análise Interna</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#0a0e1a;
+    --bg-card:#141a2a;
+    --bg-card-hover:#1a2138;
+    --border:#252d44;
+    --border-strong:#3a4364;
+    --text:#e8ecf5;
+    --text-dim:#9ba6c0;
+    --text-faint:#6a7591;
+    --purple:#7c6bb8;
+    --purple-light:#9d8de0;
+    --purple-bg:rgba(124,107,184,0.12);
+    --green:#10b981;
+    --green-bg:rgba(16,185,129,0.12);
+    --red:#ef4444;
+    --red-bg:rgba(239,68,68,0.12);
+    --yellow:#f59e0b;
+    --yellow-bg:rgba(245,158,11,0.12);
+    --blue:#3b82f6;
+    --blue-bg:rgba(59,130,246,0.12);
+  }
+  body{
+    font-family:'Inter',sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    line-height:1.6;
+    min-height:100vh;
+    background-image:radial-gradient(ellipse at top,rgba(124,107,184,0.08) 0%,transparent 50%);
+  }
+  .container{max-width:1240px;margin:0 auto;padding:48px 32px}
+  @media(max-width:768px){.container{padding:32px 16px}}
+
+  /* HEADER */
+  .header{margin-bottom:48px}
+  .badge-internal{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--red-bg);color:var(--red);
+    padding:6px 14px;border-radius:999px;
+    font-size:12px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;
+    margin-bottom:24px;border:1px solid rgba(239,68,68,0.3);
+  }
+  .badge-internal::before{content:'';width:6px;height:6px;background:var(--red);border-radius:50%;animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+  h1{font-size:48px;font-weight:800;letter-spacing:-1.5px;line-height:1.1;margin-bottom:16px}
+  @media(max-width:768px){h1{font-size:32px}}
+  .subtitle{font-size:18px;color:var(--text-dim);max-width:760px}
+  .meta{display:flex;gap:24px;margin-top:24px;flex-wrap:wrap;font-size:14px;color:var(--text-faint)}
+  .meta span{display:flex;align-items:center;gap:6px}
+
+  /* TL;DR CARDS */
+  .tldr-grid{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:16px;
+    margin-bottom:64px;
+  }
+  @media(max-width:900px){.tldr-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:480px){.tldr-grid{grid-template-columns:1fr}}
+  .tldr-card{
+    background:var(--bg-card);border:1px solid var(--border);
+    border-radius:14px;padding:24px;
+    transition:all 0.2s;
+  }
+  .tldr-card:hover{border-color:var(--border-strong);transform:translateY(-2px)}
+  .tldr-label{font-size:12px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-faint);font-weight:600;margin-bottom:12px}
+  .tldr-value{font-size:32px;font-weight:700;letter-spacing:-1px;margin-bottom:6px}
+  .tldr-detail{font-size:13px;color:var(--text-dim)}
+  .tldr-accent{color:var(--purple-light)}
+  .tldr-green{color:var(--green)}
+  .tldr-yellow{color:var(--yellow)}
+  .tldr-red{color:var(--red)}
+
+  /* SECTIONS */
+  section{margin-bottom:72px;scroll-margin-top:32px}
+  .section-label{
+    font-size:12px;text-transform:uppercase;letter-spacing:1.2px;
+    color:var(--purple-light);font-weight:700;margin-bottom:8px;
+  }
+  h2{font-size:32px;font-weight:700;letter-spacing:-0.8px;margin-bottom:32px;line-height:1.2}
+  h3{font-size:20px;font-weight:600;margin-bottom:16px}
+
+  /* CONTEXTO */
+  .ctx-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  @media(max-width:768px){.ctx-grid{grid-template-columns:1fr}}
+  .ctx-card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:28px}
+  .ctx-card h3{display:flex;align-items:center;gap:10px;color:var(--purple-light)}
+  .ctx-list{list-style:none;display:flex;flex-direction:column;gap:14px;margin-top:8px}
+  .ctx-list li{display:flex;gap:12px;font-size:14.5px;color:var(--text-dim);line-height:1.5}
+  .ctx-list li strong{color:var(--text);font-weight:600;min-width:120px;flex-shrink:0}
+  .ctx-list li::before{content:'';width:4px;height:4px;background:var(--purple);border-radius:50%;margin-top:10px;flex-shrink:0}
+
+  /* TIMELINE / EVOLUÇÃO */
+  .evo-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:768px){.evo-grid{grid-template-columns:1fr}}
+  .evo-card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:28px;position:relative;overflow:hidden}
+  .evo-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%}
+  .evo-card.discovery::before{background:var(--green)}
+  .evo-card.followup::before{background:var(--yellow)}
+  .evo-date{font-size:12px;color:var(--text-faint);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px}
+  .evo-title{font-size:22px;font-weight:700;margin-bottom:16px}
+  .evo-quote{background:rgba(255,255,255,0.03);border-left:3px solid var(--purple);padding:14px 18px;border-radius:0 8px 8px 0;font-style:italic;color:var(--text-dim);font-size:14px;margin-top:14px}
+
+  /* FLUXO */
+  .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  @media(max-width:900px){.flow{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:480px){.flow{grid-template-columns:1fr}}
+  .flow-step{
+    background:var(--bg-card);border:1px solid var(--border);
+    border-radius:12px;padding:20px;position:relative;
+  }
+  .flow-num{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:32px;height:32px;background:var(--purple-bg);color:var(--purple-light);
+    border-radius:8px;font-weight:700;font-size:14px;margin-bottom:12px;
+    border:1px solid rgba(124,107,184,0.3);
+  }
+  .flow-title{font-size:14px;font-weight:600;margin-bottom:6px;line-height:1.3}
+  .flow-desc{font-size:12.5px;color:var(--text-dim);line-height:1.5}
+
+  /* TABELA COMISSÃO */
+  .table-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:24px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  thead{background:rgba(124,107,184,0.08)}
+  th{
+    text-align:left;padding:16px;font-weight:600;
+    color:var(--purple-light);font-size:12px;text-transform:uppercase;letter-spacing:0.8px;
+    border-bottom:1px solid var(--border);
+  }
+  td{padding:14px 16px;border-bottom:1px solid var(--border);color:var(--text-dim)}
+  td:first-child{color:var(--text);font-weight:500}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:rgba(255,255,255,0.02)}
+  .cell-strong{color:var(--text);font-weight:600}
+  .cell-best{color:var(--green);font-weight:700}
+  .cell-mid{color:var(--yellow);font-weight:600}
+  .cell-low{color:var(--text-faint)}
+
+  /* CHART */
+  .chart-card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:28px;margin-bottom:24px}
+  .chart-wrap{position:relative;height:340px}
+  @media(max-width:768px){.chart-wrap{height:280px}}
+
+  /* BREAK-EVEN */
+  .be-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:768px){.be-grid{grid-template-columns:1fr}}
+  .be-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:24px;text-align:center}
+  .be-rate{font-size:14px;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:8px}
+  .be-month{font-size:36px;font-weight:800;color:var(--green);margin-bottom:8px;letter-spacing:-1px}
+  .be-detail{font-size:13px;color:var(--text-dim)}
+
+  /* RISCOS */
+  .risk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:900px){.risk-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:480px){.risk-grid{grid-template-columns:1fr}}
+  .risk-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;border-left:3px solid var(--red)}
+  .risk-num{font-size:12px;color:var(--red);font-weight:700;letter-spacing:1px;margin-bottom:8px}
+  .risk-title{font-size:15px;font-weight:600;margin-bottom:8px}
+  .risk-desc{font-size:13px;color:var(--text-dim);line-height:1.5}
+
+  /* OPÇÕES */
+  .opt-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  @media(max-width:900px){.opt-grid{grid-template-columns:1fr}}
+  .opt-card{
+    background:var(--bg-card);border:1px solid var(--border);
+    border-radius:16px;padding:28px;position:relative;
+    display:flex;flex-direction:column;
+  }
+  .opt-card.recommended{
+    border:2px solid var(--purple);
+    background:linear-gradient(180deg,rgba(124,107,184,0.08) 0%,var(--bg-card) 60%);
+  }
+  .opt-recommended-badge{
+    position:absolute;top:-12px;left:50%;transform:translateX(-50%);
+    background:var(--purple);color:#fff;padding:6px 16px;border-radius:999px;
+    font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;
+  }
+  .opt-letter{font-size:48px;font-weight:800;color:var(--purple-light);line-height:1;margin-bottom:8px}
+  .opt-name{font-size:20px;font-weight:700;margin-bottom:24px}
+  .opt-row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);font-size:13.5px}
+  .opt-row:last-of-type{border-bottom:none}
+  .opt-label{color:var(--text-faint)}
+  .opt-value{color:var(--text);font-weight:600;text-align:right;max-width:60%}
+  .opt-footer{margin-top:20px;padding-top:20px;border-top:1px solid var(--border);font-size:13px;color:var(--text-dim);font-style:italic}
+
+  /* PRÓXIMOS PASSOS */
+  .steps{display:flex;flex-direction:column;gap:14px}
+  .step{
+    background:var(--bg-card);border:1px solid var(--border);
+    border-radius:12px;padding:20px 24px;
+    display:flex;align-items:flex-start;gap:18px;
+  }
+  .step-num{
+    flex-shrink:0;width:36px;height:36px;
+    background:var(--purple-bg);color:var(--purple-light);
+    border-radius:10px;display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:16px;
+    border:1px solid rgba(124,107,184,0.3);
+  }
+  .step-content{flex:1}
+  .step-title{font-size:15px;font-weight:600;margin-bottom:4px}
+  .step-desc{font-size:13.5px;color:var(--text-dim);line-height:1.5}
+
+  /* FOOTER */
+  footer{
+    margin-top:96px;padding-top:32px;border-top:1px solid var(--border);
+    text-align:center;font-size:13px;color:var(--text-faint);
+  }
+  footer a{color:var(--purple-light);text-decoration:none}
+
+  /* SCROLL INDICATOR */
+  .nav-bar{
+    position:sticky;top:0;z-index:50;
+    background:rgba(10,14,26,0.85);backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--border);
+    padding:14px 0;margin-bottom:0;
+  }
+  .nav-content{
+    max-width:1240px;margin:0 auto;padding:0 32px;
+    display:flex;gap:24px;font-size:13px;overflow-x:auto;
+  }
+  .nav-content a{
+    color:var(--text-dim);text-decoration:none;white-space:nowrap;
+    transition:color 0.2s;font-weight:500;
+  }
+  .nav-content a:hover{color:var(--purple-light)}
+  @media(max-width:768px){.nav-bar{display:none}}
+</style>
+</head>
+<body>
+
+<nav class="nav-bar">
+  <div class="nav-content">
+    <a href="#tldr">TL;DR</a>
+    <a href="#contexto">Contexto</a>
+    <a href="#evolucao">Evolução</a>
+    <a href="#fluxo">Fluxo</a>
+    <a href="#comissao">Modelo Comissão</a>
+    <a href="#breakeven">Break-even</a>
+    <a href="#riscos">Riscos</a>
+    <a href="#opcoes">Contrapropostas</a>
+    <a href="#proximos">28/05</a>
+  </div>
+</nav>
+
+<div class="container">
+
+  <header class="header">
+    <div class="badge-internal">Documento interno · Não partilhar com cliente</div>
+    <h1>Fundo Solar — Análise da Proposta</h1>
+    <p class="subtitle">Avaliação do pedido de modelo de comissão apresentado pelos sócios após reunião de follow-up. Suporte de decisão para a reunião de fecho.</p>
+    <div class="meta">
+      <span>📅 Análise: 21 Maio 2026</span>
+      <span>👤 Comercial: Manuel Condeço</span>
+      <span>🎯 Decisão: Reunião 28 Maio 14h</span>
+    </div>
+  </header>
+
+  <!-- TL;DR -->
+  <section id="tldr">
+    <div class="tldr-grid">
+      <div class="tldr-card">
+        <div class="tldr-label">Faturação atual via FB</div>
+        <div class="tldr-value tldr-accent">300-400k€</div>
+        <div class="tldr-detail">30-40% da faturação total anual</div>
+      </div>
+      <div class="tldr-card">
+        <div class="tldr-label">Potencial c/ agente (estimado)</div>
+        <div class="tldr-value tldr-green">600-800k€</div>
+        <div class="tldr-detail">Nuno estima duplicar</div>
+      </div>
+      <div class="tldr-card">
+        <div class="tldr-label">Standard 5 anos</div>
+        <div class="tldr-value">21.100€</div>
+        <div class="tldr-detail">3.100€ + 12×300€ + anos 2-5</div>
+      </div>
+      <div class="tldr-card">
+        <div class="tldr-label">Híbrido 2,5% — 5 anos</div>
+        <div class="tldr-value tldr-yellow">~80k€</div>
+        <div class="tldr-detail">Cenário base, 525k€/ano atribuível</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTEXTO -->
+  <section id="contexto">
+    <div class="section-label">01 · Quem é o cliente</div>
+    <h2>Contexto do negócio</h2>
+    <div class="ctx-grid">
+      <div class="ctx-card">
+        <h3>🏢 Empresa & equipa</h3>
+        <ul class="ctx-list">
+          <li><strong>Setor</strong>Sistemas fotovoltaicos (core) + bombas de calor + aquecimento</li>
+          <li><strong>Decisores</strong>3 sócios; Nuno Pais é um deles</li>
+          <li><strong>Localização</strong>Escritórios Coimbra + Viseu; comerciais Castelo Branco</li>
+          <li><strong>Cobertura</strong>Interior Lisboa→Porto; Algarve esporádico</li>
+          <li><strong>Equipa comercial</strong>Fraca: 7-8 contratações em 3 anos, ficou 1. <em>Motivação chave</em> para querer IA.</li>
+        </ul>
+      </div>
+      <div class="ctx-card">
+        <h3>💰 Números & funil</h3>
+        <ul class="ctx-list">
+          <li><strong>Faturação FB</strong>300-400k€/ano (~30-40% do total)</li>
+          <li><strong>Ticket médio</strong>5-8k€; muitos sistemas 8-10k€ (subiu c/ baterias)</li>
+          <li><strong>Lead mix</strong>~40% Facebook ads / ~60% orgânico</li>
+          <li><strong>Qualificação</strong>60-70% das leads são lixo</li>
+          <li><strong>Tempo resposta atual</strong>1-2 semanas; pausam campanhas para conseguir tratar</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- EVOLUÇÃO ENTRE REUNIÕES -->
+  <section id="evolucao">
+    <div class="section-label">02 · O que aconteceu</div>
+    <h2>Evolução entre as duas reuniões</h2>
+    <div class="evo-grid">
+      <div class="evo-card discovery">
+        <div class="evo-date">14 Maio · Discovery</div>
+        <div class="evo-title">Nuno entrou comprado ✓</div>
+        <p style="color:var(--text-dim);font-size:14.5px">Validou todo o fluxo proposto. Decisão dependente apenas de "validação final dos sócios". Manel apresentou 3.100€ + 300€/mês com confiança.</p>
+        <div class="evo-quote">"Se chegarmos a entendimento, seria o quanto antes."</div>
+      </div>
+      <div class="evo-card followup">
+        <div class="evo-date">21 Maio · Follow-up</div>
+        <div class="evo-title">Sócios travaram preço ⚠</div>
+        <p style="color:var(--text-dim);font-size:14.5px">Demo correu bem, scope alargou (regras geográficas, horários, bloqueio de zonas). Mas no fecho, sócios consideraram preço alto sem garantias. Nasceu o pedido de comissão.</p>
+        <div class="evo-quote">"Eles acharam muito dinheiro sendo que nós não temos garantia de nada neste momento."</div>
+      </div>
+    </div>
+    <div style="margin-top:24px;background:var(--purple-bg);border:1px solid rgba(124,107,184,0.3);border-radius:12px;padding:20px 24px;color:var(--text);font-size:14.5px;line-height:1.7">
+      <strong style="color:var(--purple-light)">📌 Insight chave:</strong> Não é cepticismo sobre IA — é cepticismo sobre <strong>investir 3.100€+300€/mês sem prova prévia de ROI</strong>. O próprio Nuno reconheceu: <em>"se o agente funcionar bem, para nós a mais-valia é maior; para vocês acaba por estar o risco"</em>. Ele <em>quer</em> que partilhemos risco.
+    </div>
+  </section>
+
+  <!-- FLUXO PROPOSTO -->
+  <section id="fluxo">
+    <div class="section-label">03 · O que vamos construir</div>
+    <h2>Fluxo proposto do agente</h2>
+    <div class="flow">
+      <div class="flow-step"><div class="flow-num">1</div><div class="flow-title">Formulário Facebook</div><div class="flow-desc">Lead preenche → mensagem WhatsApp em &lt;1min</div></div>
+      <div class="flow-step"><div class="flow-num">2</div><div class="flow-title">Qualificação</div><div class="flow-desc">Consumo elétrico, telhado, zona geográfica</div></div>
+      <div class="flow-step"><div class="flow-num">3</div><div class="flow-title">Bloqueio regional</div><div class="flow-desc">Madeira/Espanha/fora distrito → não qualificado</div></div>
+      <div class="flow-step"><div class="flow-num">4</div><div class="flow-title">Agrupamento</div><div class="flow-desc">Reuniões da mesma região no mesmo dia</div></div>
+      <div class="flow-step"><div class="flow-num">5</div><div class="flow-title">Orçamento</div><div class="flow-desc">Referência via Google Sheet de preços</div></div>
+      <div class="flow-step"><div class="flow-num">6</div><div class="flow-title">Agendamento</div><div class="flow-desc">Google Calendar do comercial da zona</div></div>
+      <div class="flow-step"><div class="flow-num">7</div><div class="flow-title">Briefing comercial</div><div class="flow-desc">WhatsApp com resumo + data ao comercial</div></div>
+      <div class="flow-step"><div class="flow-num">8</div><div class="flow-title">Follow-up</div><div class="flow-desc">Dias 2, 5 e 10 pós-proposta</div></div>
+    </div>
+    <p style="margin-top:20px;color:var(--text-faint);font-size:13.5px">Padrão recomendado: <strong style="color:var(--text-dim)">Padrão 1 — Retriever + Assistente</strong>. Sem multi-canal complicado, só residencial via Facebook. Industrial fica fora.</p>
+  </section>
+
+  <!-- TABELA COMISSÃO -->
+  <section id="comissao">
+    <div class="section-label">04 · Os números</div>
+    <h2>Faturação por modelo de comissão</h2>
+
+    <div class="chart-card">
+      <h3 style="margin-bottom:20px">Receita anual estimada por taxa e cenário</h3>
+      <div class="chart-wrap"><canvas id="comissaoChart"></canvas></div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Cenário</th>
+            <th>Faturação atribuível</th>
+            <th>1% (proposta deles)</th>
+            <th>1,5%</th>
+            <th>2%</th>
+            <th>2,5%</th>
+            <th>3%</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Pessimista</strong><br><span style="color:var(--text-faint);font-size:12px">mantém os 300k</span></td>
+            <td class="cell-strong">300.000€</td>
+            <td class="cell-low">3.000€</td>
+            <td class="cell-low">4.500€</td>
+            <td>6.000€</td>
+            <td class="cell-mid">7.500€</td>
+            <td class="cell-mid">9.000€</td>
+          </tr>
+          <tr>
+            <td><strong>Base</strong><br><span style="color:var(--text-faint);font-size:12px">+50% → 525k</span></td>
+            <td class="cell-strong">525.000€</td>
+            <td>5.250€</td>
+            <td>7.875€</td>
+            <td class="cell-mid">10.500€</td>
+            <td class="cell-best">13.125€</td>
+            <td class="cell-best">15.750€</td>
+          </tr>
+          <tr>
+            <td><strong>Otimista</strong><br><span style="color:var(--text-faint);font-size:12px">duplica → 700k</span></td>
+            <td class="cell-strong">700.000€</td>
+            <td>7.000€</td>
+            <td class="cell-mid">10.500€</td>
+            <td class="cell-best">14.000€</td>
+            <td class="cell-best">17.500€</td>
+            <td class="cell-best">21.000€</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin-top:32px;margin-bottom:16px">Comparação 5 anos vs modelo standard (21.100€)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Taxa</th>
+            <th>5 anos · cenário base</th>
+            <th>5 anos · otimista</th>
+            <th>Vs standard 5 anos</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>1%</td><td>26.250€</td><td>35.000€</td><td class="cell-mid">+25% a +66%</td></tr>
+          <tr><td>1,5%</td><td>39.375€</td><td>52.500€</td><td class="cell-best">+87% a +149%</td></tr>
+          <tr><td>2%</td><td>52.500€</td><td>70.000€</td><td class="cell-best">+149% a +232%</td></tr>
+          <tr><td>2,5%</td><td class="cell-strong">65.625€</td><td class="cell-strong">87.500€</td><td class="cell-best">+211% a +315%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- BREAK-EVEN -->
+  <section id="breakeven">
+    <div class="section-label">05 · Quando recuperamos</div>
+    <h2>Break-even no cenário base (525k€/ano)</h2>
+    <p style="color:var(--text-dim);margin-bottom:24px;font-size:14.5px">Custo nosso estimado: <strong style="color:var(--text)">~1.000€</strong> de implementação real + <strong style="color:var(--text)">~1.500€/ano</strong> de operação (tokens LLM + infra + suporte 3-5h/mês).</p>
+    <div class="be-grid">
+      <div class="be-card">
+        <div class="be-rate">A 1%</div>
+        <div class="be-month">Mês 3</div>
+        <div class="be-detail">Lucro líquido anual: <strong style="color:var(--green)">~3.750€</strong></div>
+      </div>
+      <div class="be-card">
+        <div class="be-rate">A 2%</div>
+        <div class="be-month">Mês 2</div>
+        <div class="be-detail">Lucro líquido anual: <strong style="color:var(--green)">~9.000€</strong></div>
+      </div>
+      <div class="be-card" style="border:2px solid var(--purple)">
+        <div class="be-rate" style="color:var(--purple-light)">A 2,5% · recomendada</div>
+        <div class="be-month">Mês 2</div>
+        <div class="be-detail">Lucro líquido anual: <strong style="color:var(--green)">~11.625€</strong></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RISCOS -->
+  <section id="riscos">
+    <div class="section-label">06 · O que pode correr mal</div>
+    <h2>Riscos do modelo de comissão</h2>
+    <div class="risk-grid">
+      <div class="risk-card">
+        <div class="risk-num">RISCO 01</div>
+        <div class="risk-title">Atribuição contestada</div>
+        <div class="risk-desc">Fotovoltaico tem ciclo longo (semanas/meses entre lead e fecho). Vendas podem ser disputadas: "já tínhamos esse contacto".</div>
+      </div>
+      <div class="risk-card">
+        <div class="risk-num">RISCO 02</div>
+        <div class="risk-title">Cash flow negativo</div>
+        <div class="risk-desc">Zero entrada inicial. Implementação + 2-3 meses de operação a fundo perdido antes de qualquer receita.</div>
+      </div>
+      <div class="risk-card">
+        <div class="risk-num">RISCO 03</div>
+        <div class="risk-title">Sem CRM estruturado</div>
+        <div class="risk-desc">Só Google Sheet + Calendar. Auditoria de vendas vai ser manual e contestável. Carteira de comerciais pode "esconder" vendas.</div>
+      </div>
+      <div class="risk-card">
+        <div class="risk-num">RISCO 04</div>
+        <div class="risk-title">Bypass do agente</div>
+        <div class="risk-desc">Podem desligar partes da IA (ex: follow-up) e fechar manualmente para fugir à comissão.</div>
+      </div>
+      <div class="risk-card">
+        <div class="risk-num">RISCO 05</div>
+        <div class="risk-title">Reféns da performance deles</div>
+        <div class="risk-desc">Agente qualifica bem mas fecho depende dos comerciais — que falharam 7 em 8 contratações.</div>
+      </div>
+      <div class="risk-card">
+        <div class="risk-num">RISCO 06</div>
+        <div class="risk-title">Saída antecipada</div>
+        <div class="risk-desc">Se desligam ao mês 3 por qualquer motivo, perdemos investimento sem retorno claro.</div>
+      </div>
+      <div class="risk-card">
+        <div class="risk-num">RISCO 07</div>
+        <div class="risk-title">Precedente comercial</div>
+        <div class="risk-desc">É o 1º cliente a comissão. Outros vão pedir igual. Tem de ser enquadrado como "piloto único".</div>
+      </div>
+      <div class="risk-card">
+        <div class="risk-num">RISCO 08</div>
+        <div class="risk-title">Definição do que conta</div>
+        <div class="risk-desc">Lead orgânica que o agente qualificou conta? Cliente que ligou (não preencheu)? Ambiguidades a fixar em contrato.</div>
+      </div>
+      <div class="risk-card">
+        <div class="risk-num">RISCO 09</div>
+        <div class="risk-title">Multi-empresa do Nuno</div>
+        <div class="risk-desc">Tem mirtilos + outras empresas. Comissão aqui dificulta cobrar full price às outras depois.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 OPÇÕES -->
+  <section id="opcoes">
+    <div class="section-label">07 · O que levar dia 28</div>
+    <h2>Três contrapropostas a preparar</h2>
+    <div class="opt-grid">
+
+      <div class="opt-card recommended">
+        <div class="opt-recommended-badge">★ Recomendada</div>
+        <div class="opt-letter">A</div>
+        <div class="opt-name">Modelo Híbrido</div>
+        <div class="opt-row"><span class="opt-label">Implementação</span><span class="opt-value">1.500€ <span style="color:var(--green);font-size:11px">(-50%)</span></span></div>
+        <div class="opt-row"><span class="opt-label">Mensalidade</span><span class="opt-value">150€/mês</span></div>
+        <div class="opt-row"><span class="opt-label">Comissão</span><span class="opt-value">2,5% s/ fechado atribuível</span></div>
+        <div class="opt-row"><span class="opt-label">Período mínimo</span><span class="opt-value">12 meses</span></div>
+        <div class="opt-row"><span class="opt-label">Atribuição</span><span class="opt-value">Lead qualificada pelo agente, fechada &lt;90d</span></div>
+        <div class="opt-row"><span class="opt-label">Auditoria</span><span class="opt-value">Acesso Google Sheet vendas</span></div>
+        <div class="opt-row"><span class="opt-label">Garantia</span><span class="opt-value">Devolução implementação ao mês 1</span></div>
+        <div class="opt-footer">Ano 1 (cenário base): <strong style="color:var(--green)">~16.400€</strong> vs 6.700€ standard. Sócios sentem partilha de risco; nós cobrimos custo + margem desde dia 1.</div>
+      </div>
+
+      <div class="opt-card">
+        <div class="opt-letter">B</div>
+        <div class="opt-name">Comissão Pura</div>
+        <div class="opt-row"><span class="opt-label">Implementação</span><span class="opt-value">0€</span></div>
+        <div class="opt-row"><span class="opt-label">Mensalidade</span><span class="opt-value">0€</span></div>
+        <div class="opt-row"><span class="opt-label">Comissão</span><span class="opt-value">4% s/ fechado</span></div>
+        <div class="opt-row"><span class="opt-label">Período mínimo</span><span class="opt-value">18 meses</span></div>
+        <div class="opt-row"><span class="opt-label">Fee saída antecipada</span><span class="opt-value">5.000€</span></div>
+        <div class="opt-row"><span class="opt-label">Mínimo trimestral</span><span class="opt-value">Se &lt;300€/mês 3 meses seguidos, podemos rescindir</span></div>
+        <div class="opt-footer">Só se recusarem a A. Risco todo nosso → taxa tem de subir significativamente. Período longo + fee saída para proteger investimento.</div>
+      </div>
+
+      <div class="opt-card">
+        <div class="opt-letter">C</div>
+        <div class="opt-name">Standard Flexível</div>
+        <div class="opt-row"><span class="opt-label">Implementação</span><span class="opt-value">3.100€ em 3× sem juros</span></div>
+        <div class="opt-row"><span class="opt-label">Mensalidade</span><span class="opt-value">300€/mês</span></div>
+        <div class="opt-row"><span class="opt-label">Garantia</span><span class="opt-value">Devolução implementação ao mês 1</span></div>
+        <div class="opt-row"><span class="opt-label">Bónus referência</span><span class="opt-value">-3%/mês por cliente referenciado</span></div>
+        <div class="opt-row"><span class="opt-label">Período mínimo</span><span class="opt-value">Sem mínimo</span></div>
+        <div class="opt-footer">Mantém modelo padrão mas remove fricção de pagamento upfront. Não obriga compromisso longo. Útil se quisermos preservar precedente comercial.</div>
+      </div>
+
+    </div>
+
+    <div style="margin-top:32px;background:var(--yellow-bg);border:1px solid rgba(245,158,11,0.3);border-radius:12px;padding:20px 24px;color:var(--text);font-size:14.5px;line-height:1.7">
+      <strong style="color:var(--yellow)">⚠ Antes de oferecer A ou B:</strong> alinhar internamente se é um <strong>piloto único justificado</strong> (sócios travaram) ou se abre porta para todos os próximos clientes pedirem o mesmo. Enquadrar como <em>"piloto de modelo alternativo, 12 meses, medimos resultados antes de oferecer a outros"</em>.
+    </div>
+  </section>
+
+  <!-- PRÓXIMOS PASSOS -->
+  <section id="proximos">
+    <div class="section-label">08 · Esta semana</div>
+    <h2>Próximos passos concretos</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-title">Antes de 28/05 · Alinhamento interno</div>
+          <div class="step-desc">Tu + Diogo + Manel: decidir qual das 3 opções autorizamos. Se A: confirmar margem mínima aceitável. Se C: confirmar disposição para pagamento faseado.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-title">Telefonema prévio do Manel ao Nuno</div>
+          <div class="step-desc">Já mencionado na reunião. Testar terreno: ver se a abertura à comissão é real ou se há espaço para o standard flexível. Não fechar nada por telefone.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-title">28/05 · Levar números preparados</div>
+          <div class="step-desc">Cenários pessimista/base/otimista impressos para os 3 sócios verem o que pagam em cada caso. Mostrar tabela 5 anos. Concretiza a perceção.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <div class="step-title">28/05 · Pedir acesso ao Google Sheet/CRM</div>
+          <div class="step-desc">Se aceitarem A ou B, este é o gating: sem auditoria não há comissão. Se recusarem o acesso, é red flag — voltamos à opção C.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <div class="step-title">28/05 · Cláusula de exclusividade de canal</div>
+          <div class="step-desc">Garantir em contrato que <em>qualquer</em> lead Facebook (mesmo que pareça vir de outro sítio) que tenha passado pela qualificação do agente conta. Evita "esta veio orgânica".</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <div class="step-title">Pós-fecho · Setup atribuição</div>
+          <div class="step-desc">Antes de live: definir SQL/Sheet de tracking de leads qualificadas com timestamp + nº de telefone + resultado. Cruzamento mensal automatizado com vendas deles.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Análise gerada para uso interno · Reunião decisiva: 28 Maio 2026, 14h<br>
+    Transcrições e detalhes completos em <code style="color:var(--purple-light)">onboarding-docs/clientes/fundo-solar/</code>
+  </footer>
+
+</div>
+
+<script>
+const ctx = document.getElementById('comissaoChart').getContext('2d');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: ['1%', '1,5%', '2%', '2,5%', '3%'],
+    datasets: [
+      {
+        label: 'Pessimista (300k€)',
+        data: [3000, 4500, 6000, 7500, 9000],
+        backgroundColor: 'rgba(156,166,192,0.7)',
+        borderColor: 'rgba(156,166,192,1)',
+        borderWidth: 1,
+        borderRadius: 6,
+      },
+      {
+        label: 'Base (525k€)',
+        data: [5250, 7875, 10500, 13125, 15750],
+        backgroundColor: 'rgba(124,107,184,0.8)',
+        borderColor: 'rgba(124,107,184,1)',
+        borderWidth: 1,
+        borderRadius: 6,
+      },
+      {
+        label: 'Otimista (700k€)',
+        data: [7000, 10500, 14000, 17500, 21000],
+        backgroundColor: 'rgba(16,185,129,0.7)',
+        borderColor: 'rgba(16,185,129,1)',
+        borderWidth: 1,
+        borderRadius: 6,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { color: '#9ba6c0', font: { family: 'Inter', size: 13 }, padding: 18, usePointStyle: true }
+      },
+      tooltip: {
+        backgroundColor: '#1a2138',
+        borderColor: '#3a4364',
+        borderWidth: 1,
+        titleColor: '#e8ecf5',
+        bodyColor: '#9ba6c0',
+        padding: 12,
+        callbacks: {
+          label: function(c) { return c.dataset.label + ': ' + c.parsed.y.toLocaleString('pt-PT') + ' €/ano'; }
+        }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: { color: '#9ba6c0', font: { family: 'Inter' }, callback: function(v) { return v.toLocaleString('pt-PT') + ' €'; } },
+        grid: { color: 'rgba(255,255,255,0.05)' }
+      },
+      x: {
+        ticks: { color: '#9ba6c0', font: { family: 'Inter', size: 13, weight: '600' } },
+        grid: { display: false }
+      }
+    }
+  }
+});
+</script>
+
+</body>
+</html>
